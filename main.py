@@ -42,8 +42,7 @@ PROJECT_FILEPATH = os.path.join(EXPERIMENT_DIR, 'project.yml')
 def run_shell():
     while True:
         CWD = os.getcwd()
-        PROMPT = Fore.GREEN + '[ds-shell({}) - {}]$ '\
-                     .format('123z-3453-td45', CWD) + Fore.WHITE
+        PROMPT = Fore.GREEN + '[ds-shell:{}]$ '.format(CWD) + Fore.WHITE
 
         original_stdout = sys.stdout
         sys.stdout = sys.__stdout__
