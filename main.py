@@ -13,7 +13,7 @@ from glob import glob
 
 init(autoreset=True)
 
-
+# On Win 10 use pyreadline instead
 try:
     import readline
 except ImportError:
@@ -21,6 +21,7 @@ except ImportError:
 
 
 def completer(text, state):
+    """Gets all files and directories starting with pattern"""
     listing = glob('*')
     options = [i for i in listing if i.startswith(text)]
     if state < len(options):
@@ -37,6 +38,18 @@ readline.set_completer(completer)
 EXPERIMENT_DIR = os.path.join(os.getcwd(), '__EXPERIMENT__')
 LOG_FILEPATH = os.path.join(EXPERIMENT_DIR, 'log.db')
 PROJECT_FILEPATH = os.path.join(EXPERIMENT_DIR, 'project.yml')
+DS_COMMANDS = ['python', 'R', 'sed', 'grep', 'awk', 'sqlite3', 'nano']
+
+
+def log_command(s):
+    conn = sqlite3.connect(LOG_FILEPATH)
+    today = datetime.today().strftime('%Y-%m-%d %H:%M')
+    sql = 'INSERT INTO experiments (command,exp_date) \
+            VALUES (?,?)'
+    c = conn.cursor()
+    c.execute(sql, [repr(s), today])
+    conn.commit()
+    conn.close()
 
 
 def run_shell():
@@ -56,10 +69,16 @@ def run_shell():
 
         if c == 'exit':
             break
+
         if c == '':
             continue
 
-        if c in ['python', 'R', 'sed', 'grep', 'awk', 'sqlite3']:
+        if c == 'dls':
+            show_history()
+            continue
+
+        if c in DS_COMMANDS:
+            log_command(s)
             print(Fore.RED + '(DS-LOG: Used {})'.format(c) + Fore.WHITE)
 
         if c == 'cd':
@@ -74,12 +93,12 @@ def run_shell():
                 CWD = os.getcwd()
             continue
 
-        if c in ['python', 'R', 'ipython', 'nano', 'sqlite3']:
+        if c in DS_COMMANDS:
             if 'args' not in locals():
-                args = ''
-            cmd = subprocess.Popen([c, args], shell=True)
+                cmd = subprocess.Popen([c], shell=True)
+            else:
+                cmd = subprocess.Popen([c, args], shell=True)
             cmd.wait()
-
         else:
             try:
                 cmd = subprocess.Popen(re.split(r'\s+', s),
@@ -117,8 +136,7 @@ def check_project(name):
         conn = sqlite3.connect(LOG_FILEPATH)
         sql = """
         CREATE TABLE IF NOT EXISTS experiments (
-        uuid text,
-        parameters text,
+        command text,
         exp_date date
         )
         """
@@ -126,20 +144,48 @@ def check_project(name):
         conn.close()
 
 
+def show_history():
+    conn = sqlite3.connect(LOG_FILEPATH)
+    sql = 'SELECT * FROM experiments'
+    c = conn.cursor()
+    c.execute(sql)
+    print(c.fetchall())
+    conn.close()
+
+
+# Command line subcommands
+@click.group()
+def cli():
+    pass
+
+
 @click.command()
 @click.option('--name', default='Unnamed Project')
-def cli_setup_project(name):
+def run(name):
+    """Runs Data Science Shell for current directory"""
     check_project(name)
     run_shell()
 
 
-def cli_clean_project():
-    """Deletes recursively all experiment's files and dirs"""
+@click.command()
+def clean():
+    """Deletes recursively all files and directories from __EXPERIMENT__"""
     try:
         shutil.rmtree(EXPERIMENT_DIR)
     except Exception as e:
         pass
 
 
+@click.command()
+def ls():
+    """Show all logged commands in current session"""
+    show_history()
+    
+
+cli.add_command(run)
+cli.add_command(clean)
+cli.add_command(ls)
+
+
 if __name__ == '__main__':
-    cli_setup_project()
+    cli()
