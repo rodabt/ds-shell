@@ -1,4 +1,4 @@
-# ds-shell (Data Science Shell)
+# dsshell (Data Science Shell)
 
 Since I'm a forgetful person who sometimes jumps straight into code I've built a helper terminal system which logs every activity related to Data Science tasks in the terminal, such as:
 
@@ -17,8 +17,9 @@ Call `python main.py` inside a working directory you wish to log commands in, an
 
 ## TODO
 
-- [ ] Update project.yml with a list of recognized commands you wish logged
-- [ ] Refactor the code according to best practices
-- [ ] Create a setup file and upload to PyPy
+- [ ] Refactor the code according to best practices (PEP8, etc.)
 - [ ] Log command after execution to track its duration
 - [ ] Create usage statistics (time spent on file manipulation, calling scripts, etc)
+- [ ] Update project.yml with a list of recognized commands you wish to be logged
+- [ ] Create a setup file and upload to PyPy
+
