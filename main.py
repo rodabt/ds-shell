@@ -18,6 +18,8 @@ import oyaml as yaml
 import click
 import shutil
 import sys
+import pendulum
+from tabulate import tabulate
 from glob import glob
 
 init(autoreset=True)
@@ -31,6 +33,7 @@ except ImportError:
 EXPERIMENT_DIR = os.path.join(os.getcwd(), '__EXPERIMENT__')
 LOG_FILEPATH = os.path.join(EXPERIMENT_DIR, 'log.db')
 PROJECT_FILEPATH = os.path.join(EXPERIMENT_DIR, 'project.yml')
+PROMPT_HEADER = '[ds-shell:{}]$ '
 DS_COMMANDS = ['python', 'R', 'sed', 'grep', 'awk', 'sqlite3', 'nano']
 
 
@@ -41,22 +44,27 @@ def completer(text, state):
     return options[state] if state < len(options) else None
 
 
-def log_command(s):
+def log_command(command, start, end):
     """Logs allowed commands in __EXPERIMENT__/log.db"""
+    elapsed = end - start
     conn = sqlite3.connect(LOG_FILEPATH)
-    today = datetime.today().strftime('%Y-%m-%d %H:%M')
-    sql = 'INSERT INTO experiments (command,exp_date) \
-            VALUES (?,?)'
+    # today = datetime.today().strftime('%Y-%m-%d %H:%M')
+    sql = 'INSERT INTO experiments (command, start, end, elapsed) \
+            VALUES (?,?,?,?)'
 
     c = conn.cursor()
-    c.execute(sql, [repr(s), today])
+    c.execute(sql, [
+        repr(command),
+        start.to_datetime_string(),
+        end.to_datetime_string(), elapsed.seconds
+    ])
     conn.commit()
     conn.close()
 
 
 def get_current_prompt(current_dir):
     """Returns colorized prompt according to current_dir"""
-    return Fore.GREEN + '[ds-shell:{}]$ '.format(current_dir) + Fore.WHITE
+    return Fore.GREEN + PROMPT_HEADER.format(current_dir) + Fore.WHITE
 
 
 def get_current_input(prompt):
@@ -86,13 +94,15 @@ def process_command(command_tuple):
         else:
             os.chdir(os.path.expanduser('~'))
     elif command in DS_COMMANDS:
-        log_command(command)
+        start = pendulum.now()
         print(Fore.RED + '(DS-LOG: Used {})'.format(command) + Fore.WHITE)
         if 'arguments' not in locals():
             cmd = subprocess.Popen([command], shell=True)
         else:
             cmd = subprocess.Popen(" ".join([command, arguments]), shell=True)
         cmd.wait()
+        end = pendulum.now()
+        log_command(command, start, end)
     else:
         try:
             cmd = subprocess.Popen(
@@ -121,8 +131,12 @@ def run_shell():
         if full_command == '':
             continue
 
-        if full_command == 'dls':
-            show_history()
+        if full_command.startswith('dls'):
+            if '-' in full_command:
+                _, args = full_command.split("-", maxsplit=1)
+            else:
+                args = 'plain'
+            show_history(args)
             continue
 
         for command_tuple in list_commands:
@@ -154,19 +168,25 @@ def check_project(name):
         sql = """
         CREATE TABLE IF NOT EXISTS experiments (
         command text,
-        exp_date date
+        start date,
+        end date,
+        elapsed decimal
         )
         """
         conn.execute(sql)
         conn.close()
 
 
-def show_history():
+def show_history(fmt='plain'):
     conn = sqlite3.connect(LOG_FILEPATH)
     sql = 'SELECT * FROM experiments'
     c = conn.cursor()
     c.execute(sql)
-    print(c.fetchall())
+    print(
+        tabulate(
+            c.fetchall(),
+            headers=['Command', 'Start', 'End', 'Elapsed'],
+            tablefmt=fmt))
     conn.close()
 
 
@@ -179,14 +199,14 @@ def cli():
 @click.command()
 @click.option('--name', default='Unnamed Project')
 def run(name):
-    """Runs Data Science Shell for current directory"""
+    """Runs Data Science Shell from current directory"""
     check_project(name)
     run_shell()
 
 
 @click.command()
 def clean():
-    """Deletes recursively all files and directories from __EXPERIMENT__"""
+    """Deletes __EXPERIMENT__ directory recursively"""
     try:
         shutil.rmtree(EXPERIMENT_DIR)
     except Exception:

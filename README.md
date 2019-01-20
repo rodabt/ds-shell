@@ -13,12 +13,22 @@ This is a **WIP**. Very experimental.
 
 ## Basic Usage
 
-Call `python main.py` inside a working directory you wish to log commands in, and use it as a regular Bash terminal replacement
+```
+Usage: main.py [OPTIONS] COMMAND [ARGS]...            
+                                                      
+Options:                                              
+  --help  Show this message and exit.                 
+                                                      
+Commands:                                             
+  clean  Deletes __EXPERIMENT__ directory recursively 
+  ls     Show all logged commands in current session  
+  run    Runs Data Science Shell from current directory
+```
 
 ## TODO
 
-- [ ] Refactor the code according to best practices (PEP8, etc.)
-- [ ] Log command after execution to track its duration
+- [x] Refactor the code according to best practices (PEP8, etc.)
+- [x] Log command after execution to track its duration
 - [ ] Create usage statistics (time spent on file manipulation, calling scripts, etc)
 - [ ] Update project.yml with a list of recognized commands you wish to be logged
 - [ ] Create a setup file and upload to PyPy
